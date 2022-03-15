@@ -29,4 +29,17 @@ class GANLoss(nn.Module):
         target_tensor = self.get_target_tensor(input, target_is_real)
         return self.loss(input, target_tensor)
 
+class Regularization(nn.Module):
+    def __init__(self, regularization):
+        super(Regularization, self).__init__()
 
+    def tv(self, image):
+        x_loss = torch.mean((torch.abs(image[:,:,1:,:] - image[:,:,:-1,:])))
+        y_loss = torch.mean((torch.abs(image[:,:,:,1:] - image[:,:,:,:-1])))
+
+        return (x_loss + y_loss)
+
+    def regionLoss(self, image):
+        mask_mean = F.avg_pool2d(image, image.size(2), stride=1).squeeze().mean()
+
+        return mask_mean
