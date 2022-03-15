@@ -158,7 +158,7 @@ class plot:
         return figure
 
     def plotResult(self, epoch, trainResult, valResult):
-        path = os.path.join('../../../result/doctor/changeObject/circleRectangle/checkIdeaWorking', self.config.title + \
+        path = os.path.join('./result/circleRectangle/checkIdeaWorking', self.config.title + \
                    '_mr_' + str(self.config.mr) + '_ms_' + str(self.config.ms))
 
         # path = os.path.join('../../../result/test/')
