@@ -12,10 +12,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchvision.models as models
 
-from model.gan import * 
-from model.autoEncoder import *  
-from model.simple import *
-from model.testNetwork import *
+from model.generator import *  
+from model.discriminator import *
 from util.loss import Loss
 from util.utils import *
 from util.progress_bar import progress_bar
@@ -46,11 +44,8 @@ class changeObject(object):
         self.train_loader       = training_loader
         self.val_loader         = val_loader
 
-        self.encoder = None
-        self.maskDecoder = None
+        self.generator = None
         self.classifier = None
-        self.foreDecoder = None
-        self.backDecoder = None
 
         self.plot = None
 
@@ -62,18 +57,17 @@ class changeObject(object):
         self.val_loss = []
 
     def build_model(self):
-        # self.encoder        = Encoder(n_channels=3, n_classes=self.num_class)
-        # self.maskDecoder    = DecoderSeg(n_channels=3, n_classes=3)
-        # self.encoder        = EncoderSimple()
-        # self.maskDecoder    = DecoderSimple()
-        self.maskDecoder = ResnetGenerator(input_nc=3, output_nc=3)
-        self.discriminator  = NLayerDiscriminator(input_nc=3, use_sigmoid=True)
+        # netG      = 'basic', 'set' : basic for original ResNet, set for InstaGAN's ResNet
+        # netD      = 'basic', 'set' : basic for patchGAN discriminator, set for the InstaGAN's discriminator
+        # norm      = 'batch', 'instance', 'none'
+        # init_type = 'normal', 'xavier', 'kaiming', 'orthogonal'
+        self.generator  = define_G(input_nc=3, output_nc=3, netG='basic', norm='batch', init_type='normal', gpu_ids=[self.device])
+        self.discriminator  = define_D(input_nc=3, netD='baisc', norm='batch', use_sigmoid=True, init_type='normal', gpu_ids=[self.device])
 
-        # self.encoder        = self.encoder.to(self.device)
-        self.maskDecoder    = self.maskDecoder.to(self.device)
-        self.discriminator  = self.discriminator.to(self.device)
+        # self.generator    = self.generator.to(self.device)
+        # self.discriminator  = self.discriminator.to(self.device)
 
-        self.plot = plot(self.train_loader, self.val_loader, self.encoder, self.maskDecoder,\
+        self.plot = plot(self.train_loader, self.val_loader, self.encoder, self.generator,\
          self.device, self.config)
 
         self.crossCriterion = torch.nn.CrossEntropyLoss()
@@ -84,18 +78,15 @@ class changeObject(object):
             self.crossCriterion.cuda()
             self.bceCriterion.cuda()
 
-        self.optimizer['maskDecoder']   = torch.optim.SGD(self.maskDecoder.parameters(), lr=self.lr, weight_decay=0)
-        # self.optimizer['encoder']       = torch.optim.SGD(self.encoder.parameters(), lr=self.lr, weight_decay=0)
+        self.optimizer['generator']   = torch.optim.SGD(self.generator.parameters(), lr=self.lr, weight_decay=0)
         self.optimizer['discriminator'] = torch.optim.SGD(self.discriminator.parameters(), lr=self.lr, weight_decay=1e-3)
 
     def run(self, epoch, data_loader, work):
         if work == 'train':
-            self.maskDecoder.train()
-            # self.encoder.train()
+            self.generator.train()
             self.discriminator.train()
         elif work == 'val':
-            self.maskDecoder.eval()
-            # self.encoder.eval()
+            self.generator.eval()
             self.discriminator.eval()
 
         maskSmoothRegular   = 0
@@ -108,7 +99,6 @@ class changeObject(object):
         errDrealLoss        = 0
         errDfakeLoss        = 0
         errGfakeLoss        = 0
-        
 
         iter = 0
         num_data = 0
@@ -125,9 +115,9 @@ class changeObject(object):
             fakeLabel       = torch.full((input.size(0),), 0., dtype=torch.float, device=self.device)
             
             # latent, skip = self.encoder(input)
-            # mask = self.maskDecoder(latent, skip)
+            # mask = self.generator(latent, skip)
 
-            mask = self.maskDecoder(input)
+            mask = self.generator(input)
 
             foreground = mask + input
             
