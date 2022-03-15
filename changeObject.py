@@ -150,11 +150,9 @@ class changeObject(object):
             gener_loss  = errG + regularization
 
             if work == 'train':
-                # self.optimizer['encoder'].zero_grad()
-                self.optimizer['maskDecoder'].zero_grad()
+                self.optimizer['generator'].zero_grad()
                 gener_loss.backward()
-                # self.optimizer['encoder'].step()
-                self.optimizer['maskDecoder'].step()
+                self.optimizer['generator'].step()
 
             maskSmoothRegular   += (maskSmooth.item() * input.size(0))
             maskRegionRegular   += (maskRegion.item() * input.size(0))
