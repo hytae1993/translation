@@ -11,10 +11,9 @@ from util.utils import *
 
 
 class plot:
-    def __init__(self, train_loader, val_loader, encoder, maskDecoder, device, config):
+    def __init__(self, train_loader, val_loader, maskDecoder, device, config):
         self.train_loader = train_loader
         self.val_loader = val_loader
-        self.encoder = encoder
         self.maskDecoder = maskDecoder
         self.device = device
         self.config = config
@@ -159,7 +158,7 @@ class plot:
 
     def plotResult(self, epoch, trainResult, valResult):
         path = os.path.join('./result/circleRectangle/checkIdeaWorking', self.config.title + \
-                   '_mr_' + str(self.config.mr) + '_ms_' + str(self.config.ms))
+                   '/_mr_' + str(self.config.mr) + '_ms_' + str(self.config.ms))
 
         # path = os.path.join('../../../result/test/')
 

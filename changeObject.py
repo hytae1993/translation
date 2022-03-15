@@ -50,13 +50,13 @@ class changeObject(object):
         # netD      = 'basic', 'set' : basic for patchGAN discriminator, set for the InstaGAN's discriminator
         # norm      = 'batch', 'instance', 'none'
         # init_type = 'normal', 'xavier', 'kaiming', 'orthogonal'
-        self.generator  = define_G(input_nc=3, output_nc=3, netG='basic', norm='batch', init_type='normal', gpu_ids=[self.device])
-        self.discriminator  = define_D(input_nc=3, netD='baisc', norm='batch', use_sigmoid=True, init_type='normal', gpu_ids=[self.device])
+        self.generator  = define_G(input_nc=3, output_nc=3, ngf=64, netG='basic', norm='batch', init_type='normal', gpu_ids=[self.device])
+        self.discriminator  = define_D(input_nc=3, ndf=64, netD='basic', norm='batch', use_sigmoid=True, init_type='normal', gpu_ids=[self.device])
 
         # self.generator    = self.generator.to(self.device)
         # self.discriminator  = self.discriminator.to(self.device)
 
-        self.plot = plot(self.train_loader, self.val_loader, self.encoder, self.generator,\
+        self.plot = plot(self.train_loader, self.val_loader, self.generator,\
          self.device, self.config)
 
         self.optimizer['generator']   = torch.optim.SGD(self.generator.parameters(), lr=self.config.lr, weight_decay=0)
