@@ -30,7 +30,7 @@ class GANLoss(nn.Module):
         return self.loss(input, target_tensor)
 
 class Regularization(nn.Module):
-    def __init__(self, regularization):
+    def __init__(self):
         super(Regularization, self).__init__()
 
     def tv(self, image):
