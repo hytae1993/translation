@@ -18,8 +18,6 @@ from util.loss import *
 from util.utils import *
 from util.progress_bar import progress_bar
 from util.scheduler_learning_rate import *
-from util.laplace import * 
-
 import numpy as np
 
 from plot.plotChangeObject import plot
@@ -29,14 +27,8 @@ class changeObject(object):
         super(changeObject , self).__init__()
         self.CUDA = torch.cuda.is_available()
         self.device = torch.device('cuda' if self.CUDA else 'cpu')
-        self.seed = config.seed
-        self.nEpochs = config.epoch
-        self.lr = config.lr
-        self.ms = config.ms
-        self.mr = config.mr
-        self.mt = config.mt
-        self.ganLoss = GANLoss(use_lsgan=False)
-        self.num_class = len(config.classes)
+        self.ganLoss        = GANLoss(use_lsgan=config.lsgan)
+        self.regularization = Regularization()
         self.log_interval = config.log
         self.config = config
         
@@ -49,8 +41,6 @@ class changeObject(object):
         self.plot = None
 
         self.optimizer = {}
-
-        self.crossCriterion = None
 
         self.train_loss = []
         self.val_loss = []
@@ -69,16 +59,8 @@ class changeObject(object):
         self.plot = plot(self.train_loader, self.val_loader, self.encoder, self.generator,\
          self.device, self.config)
 
-        self.crossCriterion = torch.nn.CrossEntropyLoss()
-        self.bceCriterion   = torch.nn.BCELoss()
-
-        if self.CUDA:
-            cudnn.benchmark = True
-            self.crossCriterion.cuda()
-            self.bceCriterion.cuda()
-
-        self.optimizer['generator']   = torch.optim.SGD(self.generator.parameters(), lr=self.lr, weight_decay=0)
-        self.optimizer['discriminator'] = torch.optim.SGD(self.discriminator.parameters(), lr=self.lr, weight_decay=1e-3)
+        self.optimizer['generator']   = torch.optim.SGD(self.generator.parameters(), lr=self.config.lr, weight_decay=0)
+        self.optimizer['discriminator'] = torch.optim.SGD(self.discriminator.parameters(), lr=self.config.lr, weight_decay=1e-3)
 
     def run(self, epoch, data_loader, work):
         if work == 'train':
@@ -113,19 +95,17 @@ class changeObject(object):
             realLabel       = torch.full((input.size(0),), 1., dtype=torch.float, device=self.device)
             fakeLabel       = torch.full((input.size(0),), 0., dtype=torch.float, device=self.device)
             
-            # latent, skip = self.encoder(input)
-            # mask = self.generator(latent, skip)
-
             mask = self.generator(input)
 
             foreground = mask + input
             
             # total variation for smooth, L1 loss for area of region
-            maskSmooth = self.loss.tv(mask)
-            maskRegion = self.loss.regionLoss(mask)
+            # region loss move the mask to keep the output unchanged from the input
+            maskSmooth = self.regularization.tv(mask)
+            maskRegion = self.regularization.regionLoss(mask)
 
             # calculate loss with non-thresholded mask
-            regularization = self.ms * maskSmooth + self.mr * maskRegion
+            regularization = self.config.ms * maskSmooth + self.config.mr * maskRegion
 
             ############################
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
@@ -196,9 +176,9 @@ class changeObject(object):
         # visualize initialize data
         self.plot.plotResult(epoch=0, trainResult=None, valResult=None)
         
-        # scheduler = scheduler_learning_rate_sigmoid_double(self.optimizer, self.nEpochs, [0.01, 0.1], [0.1, 0.00001], [10, 10], [0,0])
+        # scheduler = scheduler_learning_rate_sigmoid_double(self.optimizer, self.config.epoch, [0.01, 0.1], [0.1, 0.00001], [10, 10], [0,0])
 
-        for epoch in range(1, self.nEpochs + 1):
+        for epoch in range(1, self.config.epoch + 1):
             print("\n===> Epoch {} starts:".format(epoch))
             # scheduler.step()
 
@@ -209,10 +189,9 @@ class changeObject(object):
                 self.train_loss[i].append(trainResult[i])
                 self.val_loss[i].append(valResult[i])
             
-
             if epoch % self.log_interval == 0 or epoch == 1:
                 self.plot.plotResult(epoch,self.train_loss, self.val_loss)
 
-            if epoch == self.nEpochs:
+            if epoch == self.config.epoch:
                 self.plot.plotResult(epoch, self.train_loss, self.val_loss)
 

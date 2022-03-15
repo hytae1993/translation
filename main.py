@@ -30,14 +30,10 @@ parser.add_argument('--log', type=int, default=1)
 parser.add_argument('--batchSize', type=int, default=32, help='training batch size')
 parser.add_argument('--ms', type=float, default=0.01, help='mask smooth')
 parser.add_argument('--mr', type=float, default=0.01, help='mask region')
-parser.add_argument('--mt', type=float, default=0.01, help='mumford regularization')
-parser.add_argument('--ir', type=float, default=0.1, help='segmentation loss between class loss')
-parser.add_argument('--iter', type=int, default=16, help='iteration of laplace equation')
-parser.add_argument('--last', type=int, default=4, help='number of mask')
+parser.add_argument('--lsgan', type=bool, default=False, help='using lsgan')
 
 # model configuration
 parser.add_argument('--model', '-m', type=str, default='changeObject', help='choose which model is going to use')
-parser.add_argument('--classes', '-c', type=str, nargs='*', default=[ 'dog', 'cat'], help='-c chair car')
 parser.add_argument('--title', default='', type=str, help='title for the saved component')
 
 args = parser.parse_args()
