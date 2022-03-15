@@ -14,7 +14,7 @@ import torchvision.models as models
 
 from model.generator import *  
 from model.discriminator import *
-from util.loss import Loss
+from util.loss import *
 from util.utils import *
 from util.progress_bar import progress_bar
 from util.scheduler_learning_rate import *
@@ -35,8 +35,7 @@ class changeObject(object):
         self.ms = config.ms
         self.mr = config.mr
         self.mt = config.mt
-        self.loss = Loss()
-        self.lapalce = Laplace(device=self.device).diffuse
+        self.ganLoss = GANLoss(use_lsgan=False)
         self.num_class = len(config.classes)
         self.log_interval = config.log
         self.config = config
@@ -132,9 +131,9 @@ class changeObject(object):
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
             ############################
             realOutput  = self.discriminator(ganInput)
-            errD_real   = self.bceCriterion(realOutput.squeeze(), realLabel)
+            errD_real   = self.ganLoss(input=realOutput, target_is_real=True)
             fakeOutput  = self.discriminator(foreground.detach())
-            errD_fake   = self.bceCriterion(fakeOutput.squeeze(), fakeLabel)
+            errD_fake   = self.ganLoss(input=fakeOutput, target_is_real=False)
             disc_loss   = errD_real + errD_fake
 
             if work == 'train':
@@ -146,7 +145,7 @@ class changeObject(object):
             # (2) Update G network: maximize log(D(G(z)))
             ############################
             output      = self.discriminator(foreground)
-            errG        = self.bceCriterion(output.squeeze(), realLabel)
+            errG        = self.ganLoss(input=output, target_is_real=True)
             gener_loss  = errG + regularization
 
             if work == 'train':
