@@ -3,6 +3,8 @@ import numpy as np
 import torch.nn as nn
 import kornia.morphology as mp
 import matplotlib.pyplot as plt
+from torch.optim import lr_scheduler
+from util.scheduler_learning_rate import *
 import os
 
 def find_jaccard_overlap(set_1, set_2, eps=1e-5):
@@ -21,3 +23,37 @@ def find_jaccard_overlap(set_1, set_2, eps=1e-5):
 def get_img(input, generator):
     with torch.no_grad():
         return generator(input).cpu()
+
+class learning_rate:
+    def __init__(self, optimizer, config):
+        self.optimizer  = optimizer
+        self.config     = config
+        self.scheduler  = None
+
+    def get_scheduler(self):
+        if self.config.lr_policy == 'lambda':     
+            def lambda_rule(epoch):
+                lr_l = 1.0 - max(0, epoch + self.config.epoch_count - self.config.niter) / float(self.config.niter_decay + 1)
+                return lr_l
+            self.scheduler = lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda_rule)
+        elif self.config.lr_policy == 'step':
+            self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=self.config.lr_decay_iters, gamma=0.1)
+        elif self.config.lr_policy == 'plateau':
+            self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.2, threshold=0.01, patience=5)
+        elif self.config.lr_policy == 'cosine':
+            self.scheduler = lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.config.niter, eta_min=0)
+        elif self.config.lr_policy == 'doubleSigmoid':
+            self.scheduler = scheduler_learning_rate_sigmoid_double(self.optimizer, self.config.epoch, [0.01, 0.1], [0.1, 0.00001], [10, 10], [0,0])
+        elif self.config.lr_policy == 'normal':
+            self.scheduler = None
+        else:
+            return NotImplementedError('learning rate policy [%s] is not implemented', self.config.lr_policy)
+
+    def lr_step(self):
+        if self.config.lr_policy == 'doubleSigmoid':
+            self.scheduler.step()
+        elif self.config.lr_policy == 'normal':
+            pass
+        else:
+            for optimizer in self.optimizer:
+                optimizer.step()

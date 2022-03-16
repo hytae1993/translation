@@ -1,6 +1,9 @@
 from __future__ import print_function
+from cgi import test
 import os
 import math
+import secrets
+from tkinter.messagebox import NO
 from numpy.core.numeric import False_
 
 import torch
@@ -13,6 +16,7 @@ import torch.optim as optim
 import torchvision.models as models
 
 from model.generator import *  
+from model.simple import *
 from model.discriminator import *
 from util.loss import *
 from util.utils import *
@@ -31,6 +35,7 @@ class changeObject(object):
         self.regularization = Regularization()
         self.log_interval = config.log
         self.config = config
+        self.learning_rate = None
         
         self.train_loader       = training_loader
         self.val_loader         = val_loader
@@ -50,17 +55,14 @@ class changeObject(object):
         # netD      = 'basic', 'set' : basic for patchGAN discriminator, set for the InstaGAN's discriminator
         # norm      = 'batch', 'instance', 'none'
         # init_type = 'normal', 'xavier', 'kaiming', 'orthogonal'
-        self.generator  = define_G(input_nc=3, output_nc=3, ngf=64, netG='basic', norm='batch', init_type='normal', gpu_ids=[self.device])
-        self.discriminator  = define_D(input_nc=3, ndf=64, netD='basic', norm='batch', use_sigmoid=True, init_type='normal', gpu_ids=[self.device])
+        self.generator      = define_G(input_nc=1, output_nc=1, ngf=64, netG='basic', norm='batch', init_type='normal', gpu_ids=[self.device])
+        # self.discriminator  = define_D(input_nc=1, ndf=64, netD='basic', norm='batch', use_sigmoid=True, init_type='normal', gpu_ids=[self.device])
+        self.discriminator  = Discriminator(in_channel=1).to(self.device)
 
-        # self.generator    = self.generator.to(self.device)
-        # self.discriminator  = self.discriminator.to(self.device)
-
-        self.plot = plot(self.train_loader, self.val_loader, self.generator,\
-         self.device, self.config)
+        self.plot = plot(self.train_loader, self.val_loader, self.generator, self.device, self.config)
 
         self.optimizer['generator']   = torch.optim.SGD(self.generator.parameters(), lr=self.config.lr, weight_decay=0)
-        self.optimizer['discriminator'] = torch.optim.SGD(self.discriminator.parameters(), lr=self.config.lr, weight_decay=1e-3)
+        self.optimizer['discriminator'] = torch.optim.SGD(self.discriminator.parameters(), lr=self.config.lr, weight_decay=0)
 
     def run(self, epoch, data_loader, work):
         if work == 'train':
@@ -101,11 +103,12 @@ class changeObject(object):
             
             # total variation for smooth, L1 loss for area of region
             # region loss move the mask to keep the output unchanged from the input
-            maskSmooth = self.regularization.tv(mask)
-            maskRegion = self.regularization.regionLoss(mask)
+            # maskSmooth = self.regularization.tv(mask)
+            maskRegion = self.regularization.absoulteRegionLoss(mask)
 
             # calculate loss with non-thresholded mask
-            regularization = self.config.ms * maskSmooth + self.config.mr * maskRegion
+            # regularization = self.config.ms * maskSmooth + self.config.mr * maskRegion
+            regularization = self.config.mr * maskRegion
 
             ############################
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
@@ -133,7 +136,7 @@ class changeObject(object):
                 gener_loss.backward()
                 self.optimizer['generator'].step()
 
-            maskSmoothRegular   += (maskSmooth.item() * input.size(0))
+            # maskSmoothRegular   += (maskSmooth.item() * input.size(0))
             maskRegionRegular   += (maskRegion.item() * input.size(0))
             discriminatorLoss   += (disc_loss.item() * input.size(0))
             generatorLoss       += (gener_loss.item() * input.size(0))
@@ -167,21 +170,20 @@ class changeObject(object):
         
     def runner(self):
 
+        self.build_model()
+        self.learning_rate  = learning_rate(optimizer=self.optimizer, config=self.config)
+        self.learning_rate.get_scheduler()
+
         for i in range(10):
             self.train_loss.append([])
             self.val_loss.append([])
        
-        self.build_model()
-        
         # visualize initialize data
         self.plot.plotResult(epoch=0, trainResult=None, valResult=None)
         
-        # scheduler = scheduler_learning_rate_sigmoid_double(self.optimizer, self.config.epoch, [0.01, 0.1], [0.1, 0.00001], [10, 10], [0,0])
-
         for epoch in range(1, self.config.epoch + 1):
             print("\n===> Epoch {} starts:".format(epoch))
-            # scheduler.step()
-
+            
             trainResult = self.run(epoch, self.train_loader, 'train')
             valResult = self.run(epoch, self.val_loader, 'val')
 
@@ -195,3 +197,11 @@ class changeObject(object):
             if epoch == self.config.epoch:
                 self.plot.plotResult(epoch, self.train_loss, self.val_loss)
 
+            # scheduler.step()
+            self.learning_rate.lr_step()
+
+            for param_group in self.optimizer['generator'].param_groups:
+                test = param_group['lr']
+
+            print('=============================={}==============================='.format(test))
+            

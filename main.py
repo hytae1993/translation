@@ -31,6 +31,7 @@ parser.add_argument('--batchSize', type=int, default=32, help='training batch si
 parser.add_argument('--ms', type=float, default=0.01, help='mask smooth')
 parser.add_argument('--mr', type=float, default=0.01, help='mask region')
 parser.add_argument('--lsgan', type=bool, default=False, help='using lsgan')
+parser.add_argument('--lr_policy', type=str, default='normal', help='learning rate scheduler')
 
 # model configuration
 parser.add_argument('--model', '-m', type=str, default='changeObject', help='choose which model is going to use')
@@ -66,15 +67,17 @@ class main:
                         transform=transforms.Compose([
                             transforms.Resize((64, 64)),
                             transforms.ToTensor(),
+                            transforms.Grayscale(),
                         ])), 
                     datasets.ImageFolder(
                         root='../../../dataset/rectangle/train',
                         transform=transforms.Compose([
                             transforms.Resize((64, 64)),
                             transforms.ToTensor(),
+                            transforms.Grayscale(),
                         ]))
                 ),
-                batch_size=args.batchSize, shuffle=True, num_workers=2, drop_last=True, worker_init_fn=seed_worker)
+                batch_size=args.batchSize, shuffle=True, num_workers=2, drop_last=True, worker_init_fn=seed_worker, )
             
             self.val_loader = torch.utils.data.DataLoader(
                 CustomConcatDataset(
@@ -83,12 +86,14 @@ class main:
                             transform=transforms.Compose([
                                 transforms.Resize((64, 64)),
                                 transforms.ToTensor(),
+                                transforms.Grayscale(),
                             ])),
                     datasets.ImageFolder(
                             root='../../../dataset/rectangle/val', 
                             transform=transforms.Compose([
                                 transforms.Resize((64, 64)),
                                 transforms.ToTensor(),
+                                transforms.Grayscale(),
                             ]))
                 ),
                 batch_size=args.batchSize, shuffle=False, num_workers=2, drop_last=True, worker_init_fn=seed_worker)
