@@ -22,7 +22,13 @@ def find_jaccard_overlap(set_1, set_2, eps=1e-5):
 
 def get_img(input, generator):
     with torch.no_grad():
-        return generator(input).cpu()
+        mask        = generator(input)
+        mask_       = mask.view(mask.shape[0], -1)
+        mask_min    = mask_.min(1, keepdim=True)[0]
+        mask_max    = mask_.max(1, keepdim=True)[0]
+
+        mask        = (mask - mask_min) / (mask_max - mask_min)
+        return mask.cpu()
 
 class learning_rate:
     def __init__(self, optimizer, config):
