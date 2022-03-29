@@ -30,6 +30,7 @@ parser.add_argument('--log', type=int, default=1)
 parser.add_argument('--batchSize', type=int, default=32, help='training batch size')
 parser.add_argument('--ms', type=float, default=0.01, help='mask smooth')
 parser.add_argument('--mr', type=float, default=0.01, help='mask region')
+parser.add_argument('--gp', type=float, default=1, help='gradient penalty')
 parser.add_argument('--lsgan', type=bool, default=False, help='using lsgan')
 parser.add_argument('--lr_policy', type=str, default='normal', help='learning rate scheduler')
 
@@ -63,14 +64,14 @@ class main:
             self.train_loader = torch.utils.data.DataLoader(
                 CustomConcatDataset(
                     datasets.ImageFolder(
-                        root='../../../dataset/circle/train',
+                        root='../../../dataset/dog/train',
                         transform=transforms.Compose([
                             transforms.Resize((64, 64)),
                             transforms.ToTensor(),
                             transforms.Grayscale(),
                         ])), 
                     datasets.ImageFolder(
-                        root='../../../dataset/rectangle/train',
+                        root='../../../dataset/cat/train',
                         transform=transforms.Compose([
                             transforms.Resize((64, 64)),
                             transforms.ToTensor(),
@@ -82,14 +83,14 @@ class main:
             self.val_loader = torch.utils.data.DataLoader(
                 CustomConcatDataset(
                     datasets.ImageFolder(
-                            root='../../../dataset/circle/val',
+                            root='../../../dataset/dog/val',
                             transform=transforms.Compose([
                                 transforms.Resize((64, 64)),
                                 transforms.ToTensor(),
                                 transforms.Grayscale(),
                             ])),
                     datasets.ImageFolder(
-                            root='../../../dataset/rectangle/val', 
+                            root='../../../dataset/cat/val', 
                             transform=transforms.Compose([
                                 transforms.Resize((64, 64)),
                                 transforms.ToTensor(),
