@@ -56,13 +56,16 @@ class changeObject(object):
         # norm      = 'batch', 'instance', 'none'
         # init_type = 'normal', 'xavier', 'kaiming', 'orthogonal'
         self.generator      = define_G(input_nc=1, output_nc=1, ngf=64, netG='basic', norm='batch', init_type='normal', gpu_ids=[self.device])
-        # self.discriminator  = define_D(input_nc=1, ndf=64, netD='basic', norm='batch', use_sigmoid=True, init_type='normal', gpu_ids=[self.device])
-        self.discriminator  = Discriminator(in_channel=1).to(self.device)
+        self.discriminator  = define_D(input_nc=1, ndf=64, netD='basic', norm='batch', use_sigmoid=True, init_type='normal', gpu_ids=[self.device])
+        # self.discriminator  = Discriminator(in_channel=1).to(self.device)
 
         self.plot = plot(self.train_loader, self.val_loader, self.generator, self.device, self.config)
 
-        self.optimizer['generator']   = torch.optim.SGD(self.generator.parameters(), lr=self.config.lr, weight_decay=0)
-        self.optimizer['discriminator'] = torch.optim.SGD(self.discriminator.parameters(), lr=self.config.lr, weight_decay=0)
+        self.optimizer['generator']   = torch.optim.SGD(self.generator.parameters(), lr=self.config.lr, weight_decay=1e-3)
+        self.optimizer['discriminator'] = torch.optim.SGD(self.discriminator.parameters(), lr=self.config.lr*0.1, weight_decay=1e-3)
+
+        # self.optimizer['generator']   = torch.optim.Adam(self.generator.parameters(), lr=self.config.lr, weight_decay=0, betas=(0.9, 0.999), eps=1e-08)
+        # self.optimizer['discriminator'] = torch.optim.Adam(self.discriminator.parameters(), lr=self.config.lr, weight_decay=1e-1, betas=(0.9, 0.999), eps=1e-08)
 
     def run(self, epoch, data_loader, work):
         if work == 'train':
@@ -100,11 +103,11 @@ class changeObject(object):
             mask = self.generator(input)
 
             foreground = mask + input
-            
+
             # total variation for smooth, L1 loss for area of region
             # region loss move the mask to keep the output unchanged from the input
             # maskSmooth = self.regularization.tv(mask)
-            maskRegion = self.regularization.absoulteRegionLoss(mask)
+            maskRegion = self.regularization.powerRegionLoss(mask)
 
             # calculate loss with non-thresholded mask
             # regularization = self.config.ms * maskSmooth + self.config.mr * maskRegion
@@ -113,11 +116,19 @@ class changeObject(object):
             ############################
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
             ############################
+            # realOutput  = self.discriminator(ganInput.requires_grad_())
             realOutput  = self.discriminator(ganInput)
             errD_real   = self.ganLoss(input=realOutput, target_is_real=True)
+            # foreground_ = foreground.detach()
+            # fakeOutput  = self.discriminator(foreground_.requires_grad_())
             fakeOutput  = self.discriminator(foreground.detach())
             errD_fake   = self.ganLoss(input=fakeOutput, target_is_real=False)
             disc_loss   = errD_real + errD_fake
+
+            # loss_gradient_decay_real    = compute_gradient_norm(ganInput, realOutput)
+            # loss_gradient_decay_fake    = compute_gradient_norm(foreground_, fakeOutput)
+
+            # disc_loss   = disc_loss + self.config.gp * (loss_gradient_decay_real + loss_gradient_decay_fake)
 
             if work == 'train':
                 self.optimizer['discriminator'].zero_grad()
@@ -171,8 +182,8 @@ class changeObject(object):
     def runner(self):
 
         self.build_model()
-        self.learning_rate  = learning_rate(optimizer=self.optimizer, config=self.config)
-        self.learning_rate.get_scheduler()
+        # self.learning_rate  = learning_rate(optimizer=self.optimizer, config=self.config)
+        # self.learning_rate.get_scheduler()
 
         for i in range(10):
             self.train_loss.append([])
@@ -198,10 +209,10 @@ class changeObject(object):
                 self.plot.plotResult(epoch, self.train_loss, self.val_loss)
 
             # scheduler.step()
-            self.learning_rate.lr_step()
+            # self.learning_rate.lr_step()
 
-            for param_group in self.optimizer['generator'].param_groups:
-                test = param_group['lr']
+            # for param_group in self.optimizer['generator'].param_groups:
+            #     test = param_group['lr']
 
-            print('=============================={}==============================='.format(test))
+            # print('=============================={}==============================='.format(test))
             
