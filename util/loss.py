@@ -43,3 +43,27 @@ class Regularization(nn.Module):
         mask_mean = F.avg_pool2d(image, image.size(2), stride=1).squeeze().mean()
 
         return mask_mean
+
+    def absoulteRegionLoss(self, image):
+        image       = torch.abs(image)
+        mask_mean   = F.avg_pool2d(image, image.size(2), stride=1).squeeze().mean()
+
+        return mask_mean
+
+    def powerRegionLoss(self, image):
+        image       = torch.pow(image, 2)
+        mask_mean   = F.avg_pool2d(image, image.size(2), stride=1).squeeze().mean()
+
+        return mask_mean
+
+# ---------------------------------------------------------------------------
+# function for computing the gradient penalty
+# ---------------------------------------------------------------------------
+def compute_gradient_norm(input_data, output_prediction):
+   
+    number_data     = len(input_data)
+    gradient        = torch.autograd.grad(outputs=output_prediction.sum(), inputs=input_data, create_graph=True, retain_graph=True, only_inputs=True)[0]
+    gradient_square = gradient.pow(2)
+    gradient_norm   = gradient_square.reshape(number_data, -1).sum(1) 
+
+    return gradient_norm.mean()
